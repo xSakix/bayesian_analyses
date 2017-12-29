@@ -1,3 +1,5 @@
+import numpy as np
+
 def compute(data):
     up_down = []
     for i in data.index:

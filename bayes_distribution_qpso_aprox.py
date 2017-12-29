@@ -7,7 +7,8 @@ sys.path.insert(0, '../qpso_curve_fit')
 from qpso_curve_fit import QPSOCurveFit
 
 import sys
-sys.path.insert(0,'../rebalancer')
+
+sys.path.insert(0, '../rebalancer')
 from rebalancer import load_data
 
 import price_changes
@@ -21,19 +22,21 @@ c0 = list_of_price_changes.count(0)
 
 print(c1)
 print(c0)
-p1 = c1 / len(list_of_price_changes)
-p0 = c0 / len(list_of_price_changes)
+sample_size = len(list_of_price_changes)
+p1 = c1 / sample_size
+p0 = c0 / sample_size
 print(p1)
 print(p0)
 
-print('likehood(goes up, binom):' + str(binom.pmf(c1, len(list_of_price_changes), p1)))
-print(binom.pmf(c0, len(list_of_price_changes), p0))
+print('likehood(goes up, binom):' + str(binom.pmf(c1, sample_size, p1)))
+print(binom.pmf(c0, sample_size, p0))
 
-priors = np.random.uniform(0., 1., len(list_of_price_changes))
+x = np.linspace(0., 1., sample_size)
+priors = np.random.uniform(0., 1., sample_size)
 priors.sort()
 
-binom_data = binom.pmf(c1, len(list_of_price_changes), priors)
-t = np.multiply(binom_data, priors)
+binom_data = binom.pmf(c1, sample_size, x)
+t = binom_data * priors
 t = t / np.sum(t)
 
 qpso = QPSOCurveFit(400, 200, m=3)

@@ -7,6 +7,7 @@ sys.path.insert(0, '../rebalancer')
 from rebalancer import load_data
 
 import price_changes
+import grid_approx
 
 data, data2 = load_data(['TECL'], '2010-01-01', '2017-12-12')
 
@@ -25,11 +26,7 @@ print(p0)
 print('likehood(goes up, binom):' + str(binom.pmf(c1, len(list_of_price_changes), p1)))
 print(binom.pmf(c0, len(list_of_price_changes), p0))
 
-p_grid = np.linspace(0., 1., len(list_of_price_changes))
-prior = np.repeat(1., len(list_of_price_changes))
-likehood = binom.pmf(c1, len(list_of_price_changes), p_grid)
-posterior = np.multiply(likehood, prior)
-posterior = posterior / np.sum(posterior)
+p_grid,posterior = grid_approx.compute(list_of_price_changes,1)
 
 plt.plot(p_grid, posterior, 'b')
 plt.show()

@@ -3,6 +3,7 @@ import numpy as np
 from scipy.stats import binom
 from crypto_quandl_loader import load_data
 import price_changes
+import grid_approx
 
 data = load_data('BTER/VTCBTC')
 
@@ -22,11 +23,7 @@ for diff in diffs:
     print('likehood(goes up, binom):' + str(binom.pmf(c1, len(up_down), p1)))
     print(binom.pmf(c0, len(up_down), p0))
 
-    p_grid = np.linspace(0., 1., len(up_down))
-    prior = np.repeat(1., len(up_down))
-    likehood = binom.pmf(c1, len(up_down), p_grid)
-    posterior = np.multiply(likehood, prior)
-    posterior = posterior / np.sum(posterior)
+    p_grid, posterior = grid_approx.compute(up_down, 1)
 
     plt.plot(p_grid, posterior)
 
