@@ -3,7 +3,11 @@ import numpy as np
 from scipy.stats import binom
 import sys
 
-sys.path.insert(0, '../rebalancer')
+sys.path.insert(0, '../qpso_curve_fit')
+from qpso_curve_fit import QPSOCurveFit
+
+import sys
+sys.path.insert(0,'../rebalancer')
 from rebalancer import load_data
 
 import price_changes
@@ -25,11 +29,20 @@ print(p0)
 print('likehood(goes up, binom):' + str(binom.pmf(c1, len(list_of_price_changes), p1)))
 print(binom.pmf(c0, len(list_of_price_changes), p0))
 
-p_grid = np.linspace(0., 1., len(list_of_price_changes))
-prior = np.repeat(1., len(list_of_price_changes))
-likehood = binom.pmf(c1, len(list_of_price_changes), p_grid)
-posterior = np.multiply(likehood, prior)
-posterior = posterior / np.sum(posterior)
+priors = np.random.uniform(0., 1., len(list_of_price_changes))
+priors.sort()
 
-plt.plot(p_grid, posterior, 'b')
+binom_data = binom.pmf(c1, len(list_of_price_changes), priors)
+t = np.multiply(binom_data, priors)
+t = t / np.sum(t)
+
+qpso = QPSOCurveFit(400, 200, m=3)
+
+result = qpso.run(binom_data, t)
+
+posterior = result.evaluate(binom_data)
+
+plt.plot(priors, t)
+plt.plot(priors, posterior)
+plt.legend(['grid_aprox', 'quadratic'])
 plt.show()
