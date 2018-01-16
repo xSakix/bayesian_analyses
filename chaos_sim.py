@@ -1,8 +1,12 @@
 import numpy as np
-import etf_data_loader
 import matplotlib.pyplot as plt
 import pymc3 as pm
 from scipy.stats import binom
+import sys
+import seaborn as sns
+
+sys.path.insert(0, '../rebalancer')
+import etf_data_loader
 
 
 def yorke(x, r):
@@ -10,30 +14,26 @@ def yorke(x, r):
 
 
 class Individual:
-
-    def __init__(self, num_of_assets=1, r=np.random.uniform(2.9, 4.0, 2)):
+    def __init__(self, num_of_assets=1):
         self.cash = 0.
         self.invested = 0.
         self.history = []
         self.invested_history = []
         self.shares = []
-        self.r = r
+        self.r = np.random.uniform(2.9, 4.0, 2)
         if num_of_assets == 1:
             self.dist = np.array([0.5])
         else:
             self.dist = np.full(num_of_assets, 0.9 / num_of_assets)
+
         self.events = []
         self.num_of_assets = num_of_assets
         self.tr_cost = 2.
         self.x_history = []
 
-    def load_high_low(self, df_high, df_low, df_open):
+    def load_high_low(self, df_high, df_low):
         if df_high is not None and df_low is not None:
             df_high_low = np.abs(df_high - df_low)
-        else:
-            for key in df_open.keys():
-                std = df_open[key].std()
-                mean = df_open[key].mean()
 
         return df_high_low
 
@@ -43,7 +43,7 @@ class Individual:
             x = yorke(x, self.r)
             self.x_history.append(x)
 
-        df_high_low = self.load_high_low(df_high, df_low, df_open)
+        df_high_low = self.load_high_low(df_high, df_low)
 
         if len(df_open.keys()) == 0:
             return
@@ -76,17 +76,18 @@ class Individual:
             prices = self.compute_prices(high_low, prices)
 
             # sell
-            if x[0] >= 0.9:
-                self.cash = np.dot(self.shares, prices) - self.num_of_assets * self.tr_cost
+            if x[0] >= 0.9 and sum(self.shares > 0) > 0:
+                self.cash = np.dot(self.shares, prices) - sum(self.shares > 0) * self.tr_cost
                 self.events.append('S')
+                self.shares = np.zeros(self.num_of_assets)
             # buy
             if x[1] >= 0.9:
                 c = np.multiply(self.dist, portfolio)
                 c = np.subtract(c, self.tr_cost)
                 s = np.divide(c, prices)
                 s = np.floor(s)
-                self.cash = portfolio - np.dot(self.shares, prices) - self.num_of_assets * self.tr_cost
                 self.shares = s
+                self.cash = portfolio - np.dot(self.shares, prices) - self.num_of_assets * self.tr_cost
                 self.events.append('B')
 
             if x[0] < 0.9 and x[1] < 0.9:
@@ -95,14 +96,11 @@ class Individual:
             day += 1
 
     def compute_prices(self, high_low, prices):
-        for i in range(len(high_low)):
-            if high_low[i] <= 0. or np.isnan(high_low[i]):
-                high_low[i] = 0.001
+        high_low = np.array(high_low)
+        high_low[high_low <= 0.] = 0.001
+        high_low[np.isnan(high_low)] = 0.001
         noise = np.random.normal(0, high_low)
-        # print('noise = '+str(noise))
-        # print('price before = '+str(prices))
         prices = np.add(prices, noise)
-        # print('price after = '+str(prices))
 
         return prices
 
@@ -111,35 +109,72 @@ etf = ['BND', 'SPY', 'XLK', 'VWO']
 start_date = '2010-01-01'
 end_date = '2017-12-12'
 
+print('Loading data...')
 df_open, df_close, df_high, df_low, df_adj_close = etf_data_loader.load_data(etf, start_date, end_date)
+print('Data loaded...')
 
 best = None
-for _ in range(50):
+print('Generating good sim params...')
+for i in range(100):
     ind = Individual(len(etf))
     ind.simulate(df_adj_close, df_high, df_low)
     if best is None:
         best = ind
 
     if best.history[-1] < ind.history[-1]:
-        print(best.history[-1])
+        print(ind.history[-1])
         best = ind
+print('Simulation data generated...')
+print('Evaluating distributions/data...')
 
 returns = (best.history[-1] - best.invested_history[-1]) / best.invested_history[-1]
 print('value: ' + str(best.history[-1]))
 print('invested:' + str(best.invested_history[-1]))
-print('returns: ' + str(returns))
+print('returns: ' + str(returns*100.)+" %")
 
-_, (ax0, ax1) = plt.subplots(1, 2)
+f,(ax0,ax1) = plt.subplots(1,2)
+f.suptitle('development of value')
 ax0.plot(best.history)
-ax1.hist(best.events, bins=50)
+ax0.plot(best.invested_history)
+ax1.plot(best.x_history[:20])
 plt.show()
 
-size=len(best.events)
-priors = np.random.uniform(0.,1.,size)
-p_grid = np.linspace(0.,1.,size)
-likehood = binom.pmf(best.events.count('B'),size, p=p_grid)
-posterior = likehood*priors
-posterior = posterior/posterior.sum()
-plt.plot(p_grid,posterior)
-plt.show()
+
+def show_distribution_for(event):
+    global f, ax0, ax1
+
+    size = len(best.events)
+    priors = np.random.uniform(0., 1., size)
+    p_grid = np.linspace(0., 1., size)
+    likehood = binom.pmf(best.events.count(event), size, p=p_grid)
+    posterior = likehood * priors
+    posterior = posterior / posterior.sum()
+    f = plt.figure('posterior distribution of '+event+' events')
+    plt.plot(p_grid, posterior)
+    plt.show()
+
+    sample_size = int(10000)
+    samples = np.random.choice(a=p_grid, p=posterior, size=sample_size)
+    plt.figure('samples of '+event+' event distribution')
+    sns.kdeplot(samples)
+    plt.show()
+
+    print('0.95% = '+str(pm.hpd(samples,alpha=0.95)))
+
+
+    dummy_w = binom.rvs(n=size, p=samples, size=sample_size)
+    f, (ax0, ax1) = plt.subplots(1, 2)
+    f.suptitle('posterior from samples of '+event+' distribution and histogram of buy events')
+    ax0.plot(posterior)
+    ax1.hist(dummy_w, bins=50)
+    plt.show()
+    means = [(dummy_w == i).mean() for i in range(size)]
+    plt.figure('means of sampled model for '+event+'distri')
+    plt.plot(means)
+    plt.show()
+
+
+show_distribution_for('B')
+show_distribution_for('S')
+show_distribution_for('H')
 
