@@ -126,6 +126,25 @@ print(means)
 plt.hist(dummy_w,bins=50)
 plt.show()
 
+dummy_w = binom.rvs(n=9, p=0.5, size=100000)
+means = [(dummy_w == i).mean() for i in range(9)]
+print(means)
+plt.hist(dummy_w,bins=50)
+plt.show()
+
+dummy_w = binom.rvs(n=9, p=0.4, size=100000)
+means = [(dummy_w == i).mean() for i in range(9)]
+print(means)
+plt.hist(dummy_w,bins=50)
+plt.show()
+
+dummy_w = binom.rvs(n=9, p=0.3, size=100000)
+means = [(dummy_w == i).mean() for i in range(9)]
+print(means)
+plt.hist(dummy_w,bins=50)
+plt.show()
+
+
 #generate samples from posterior
 p_grid, posterior = grid_aprox(grid_points=1000, success=6, tosses=9)
 np.random.seed(100)
