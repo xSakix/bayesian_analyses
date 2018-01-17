@@ -141,15 +141,16 @@ plt.show()
 
 
 def show_distribution_for(event):
-    global f, ax0, ax1
 
     size = len(best.events)
-    priors = np.random.uniform(0., 1., size)
+    #priors = np.random.uniform(0., 1., size)
+    #lets asume that any event has an equal prob of occurence before observations are made
+    priors = np.repeat(1.,size)
     p_grid = np.linspace(0., 1., size)
     likehood = binom.pmf(best.events.count(event), size, p=p_grid)
     posterior = likehood * priors
     posterior = posterior / posterior.sum()
-    f = plt.figure('posterior distribution of '+event+' events')
+    plt.figure('posterior distribution of '+event+' events')
     plt.plot(p_grid, posterior)
     plt.show()
 
@@ -164,17 +165,34 @@ def show_distribution_for(event):
 
     dummy_w = binom.rvs(n=size, p=samples, size=sample_size)
     f, (ax0, ax1) = plt.subplots(1, 2)
-    f.suptitle('posterior from samples of '+event+' distribution and histogram of buy events')
+    f.suptitle('posterior from samples of '+event+' distribution and histogram of '+event+' events')
     ax0.plot(posterior)
     ax1.hist(dummy_w, bins=50)
     plt.show()
     means = [(dummy_w == i).mean() for i in range(size)]
-    plt.figure('means of sampled model for '+event+'distri')
+    plt.figure('means of sampled model for '+event+' distri')
     plt.plot(means)
     plt.show()
 
+    return dummy_w, samples
 
-show_distribution_for('B')
-show_distribution_for('S')
-show_distribution_for('H')
+
+# show_distribution_for('B')
+# show_distribution_for('S')
+data,samples = show_distribution_for('H')
+boundaries = pm.hpd(samples,alpha=0.95)
+events = []
+for s in samples:
+    if s >= boundaries[0] or s <= boundaries[1]:
+        events.append('H')
+    else:
+        events.append('B')
+
+print('num of hold events orig:'+str(best.events.count('H')))
+print('num of hold events sampled:'+str(events.count('H')))
+print('num of buy events orig:'+str(best.events.count('B')))
+print('num of buy events sampled:'+str(events.count('B')))
+
+#because there is a lot of Holds, so we could simulate a sample simulation of H. And when not H
+# we  do B.
 
