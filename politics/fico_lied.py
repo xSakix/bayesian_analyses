@@ -1,3 +1,5 @@
+# todo: vytazit http://www.demagog.sk/politici/21/robert-fico
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pymc3 as pm
