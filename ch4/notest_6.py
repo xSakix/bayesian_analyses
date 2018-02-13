@@ -73,24 +73,25 @@ plt.show()
 post = pm.trace_to_dataframe(trace_model)[:5]
 print(post)
 
-N = [10, 50, 150, 352][0]
-with pm.Model() as m_N:
-    alpha = pm.Normal('alpha', mu=178, sd=100)
-    beta = pm.Normal('beta', mu=0, sd=10)
-    sigma = pm.Uniform('sigma', lower=0, upper=50)
-    mu = alpha + beta * d2.weight_c[:N]
-    # pm.Deterministic('mu', alpha + beta * d2.weight)
-    h = pm.Normal('height', mu=mu, sd=sigma, observed=d2.height[:N])
-    trace_N = pm.sample(1000, tune=1000)
+for N in [10, 50, 150, 352]:
 
-chain_N = trace_N[100:]
-pm.traceplot(chain_N)
-plt.show()
+    with pm.Model() as m_N:
+        alpha = pm.Normal('alpha', mu=178, sd=100)
+        beta = pm.Normal('beta', mu=0, sd=10)
+        sigma = pm.Uniform('sigma', lower=0, upper=50)
+        #mu = alpha + beta * d2.weight_c[:N]
+        mu = pm.Deterministic('mu', alpha + beta * d2.weight_c[:N])
+        h = pm.Normal('height', mu=mu, sd=sigma, observed=d2.height[:N])
+        trace_N = pm.sample(1000, tune=1000)
 
-plt.plot(d2.weight_c[:N], d2.height[:N], 'C0o')
-for _ in range(0, 20):
-    idx = np.random.randint(len(chain_N))
-    plt.plot(d2.weight_c[:N], chain_N['alpha'][idx] + chain_N['beta'][idx] * d2.weight_c[:N], 'C2-', alpha=0.5)
-plt.xlabel(d2.columns[1])
-plt.ylabel(d2.columns[0])
-plt.show()
+    chain_N = trace_N[100:]
+    pm.traceplot(chain_N)
+    plt.show()
+
+    plt.plot(d2.weight_c[:N], d2.height[:N], 'C0o')
+    for _ in range(0, 20):
+        idx = np.random.randint(len(chain_N))
+        plt.plot(d2.weight_c[:N], chain_N['alpha'][idx] + chain_N['beta'][idx] * d2.weight_c[:N], 'C2-', alpha=0.5)
+    plt.xlabel(d2.columns[1])
+    plt.ylabel(d2.columns[0])
+    plt.show()
