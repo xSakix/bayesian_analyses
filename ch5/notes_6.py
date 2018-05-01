@@ -9,16 +9,6 @@ import pymc3 as pm
 
 d = pd.read_csv('../../rethinking/data/WaffleDivorce.csv', sep=';', header=0)
 
-plt.plot(d.MedianAgeMarriage, d.Divorce, 'C0o')
-plt.xlabel('median age marriage')
-plt.ylabel('divorce')
-plt.show()
-
-plt.plot(d.Marriage, d.Divorce, 'C0o')
-plt.xlabel('marriage')
-plt.ylabel('divorce')
-plt.show()
-
 d['Marriage_s'] = (d.Marriage - np.mean(d.Marriage)) / np.std(d.Marriage)
 d['MedianAgeMarriage_s'] = (d.MedianAgeMarriage - np.mean(d.MedianAgeMarriage)) / np.std(d.MedianAgeMarriage)
 
@@ -31,11 +21,11 @@ with pm.Model() as model:
     divorce = pm.Normal('divorce', mu=mu, sd=sigma, observed=d.Divorce)
     trace_model = pm.sample(1000, tune=1000)
 
-varnames = ['a', 'bA', 'bR', 'sigma']
-pm.traceplot(trace_model, varnames)
-plt.show()
+mu_pred = trace_model['mu']
+mu_hpd = pm.hpd(mu_pred, alpha=0.05)
+divorce_pred = pm.sample_ppc(trace_model, model=model, samples=1000)['divorce']
+divorce_hpd = pm.hpd(divorce_pred)
 
-print(pm.summary(trace_model, varnames, alpha=0.11))
-
-pm.forestplot(trace_model, varnames=varnames)
+plt.errorbar(d.Divorce, divorce_pred.mean(0), yerr=np.abs(divorce_pred.mean(0) - mu_hpd.T), fmt='C0o')
+plt.plot(d.Divorce,divorce_pred.mean(0),'C0o')
 plt.show()
